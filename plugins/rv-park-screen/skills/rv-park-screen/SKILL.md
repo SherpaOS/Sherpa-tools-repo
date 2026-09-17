@@ -1,6 +1,6 @@
 ---
 name: rv-park-screen
-pack_version: 0.7.0
+pack_version: 0.7.1
 description: >-
   Screen ONE RV park, MHP or campground from an ADDRESS — no numbers required. Pulls what
   is knowable for free (satellite image, RV-vs-MHP class, pad-count proxy, parcel, FEMA
@@ -66,6 +66,10 @@ order:
 4. **Parcel size** where the county publishes it.
 5. **FEMA flood zone** — National Flood Hazard Layer, address-level. **`AE` or `VE` changes
    insurability and financeability** — that is a genuine pursue/pass signal, not colour.
+   **Call it the way `references/rv-deal-fields.md` → "FEMA flood zone — the working method"
+   says to** — the ArcGIS endpoint, the geocoder fallback, and multi-point sampling on large
+   parcels. Do not improvise a URL: the commonly-cited `gis/nfhl` path is dead and silently
+   yields `NOT FOUND` on a field this skill promises.
 6. **Wildfire hazard** — USFS Wildfire Hazard Potential. Drives insurance cost and carrier
    availability in the West.
 7. **Area crime** — FBI Crime Data Explorer. ⚠️ **This is AGENCY-level (city or county), not

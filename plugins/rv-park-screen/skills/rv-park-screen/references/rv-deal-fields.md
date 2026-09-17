@@ -48,7 +48,7 @@ fill at screen stage, never guess.
 | `asset_class` | RV park vs MHP vs mixed | EPA SDWIS system class (TNCWS→RV, CWS→MHP) | Decides which playbook applies and whether it qualifies for an RV-only mandate. Route, never discard. |
 | `pad_count_proxy` | Approx. site count | SDWIS connections + national compile | A proxy, **not** a verified count — always confirm with the seller. Sets the size class. |
 | `parcel_size` | Acreage | county parcel data where public | Land per site tells you whether expansion is even physically possible. |
-| `flood_zone` | FEMA flood zone | FEMA NFHL (address-level) | **AE/VE changes insurability and financeability** — a genuine pass signal, not colour. |
+| `flood_zone` | FEMA flood zone | FEMA NFHL via the ArcGIS endpoint — **see "FEMA flood zone — the working method" below** | **AE/VE changes insurability and financeability** — a genuine pass signal, not colour. |
 | `fire_hazard` | Wildfire hazard class | USFS Wildfire Hazard Potential | Insurance cost and carrier availability in the West. |
 | `crime_area` | Violent / property rate | FBI Crime Data Explorer | ⚠️ **Agency-level (city/county), NOT address-level.** Label it as such or it reads as wrong. |
 | `owner_name` | Owner of record | county recorder where public | Who you are actually calling. Often an LLC — the human behind it is the next question. |
@@ -102,3 +102,47 @@ use these `key` values, with one of: the value, `"NOT FOUND"` (pull failed or un
 Those three are **not interchangeable** — the difference between *nobody asked*, *the data
 does not exist*, and *the seller would not say* is often the most informative thing in the
 file.
+
+
+## FEMA flood zone — the working method (added 2026-09-17)
+
+**Do not let the model find its own endpoint.** Until this section existed, both RV skills
+named the source (*"FEMA NFHL, address-level"*) and gave no way to call it. Every run
+re-derived the URL, most landed on the widely-cited `hazards.fema.gov/gis/nfhl/…` — which
+is **dead (404, verified 2026-09-17)** — and `flood_zone` came back `NOT FOUND` for every
+customer, on a field the skill advertises. A named source with no method is not a method.
+
+**1. Geocode the address to lat/lon.** Start with the US Census geocoder
+(`geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=…&benchmark=Public_AR_Current&format=json`).
+**It frequently misses rural addresses — exactly the ones RV parks have.** On a miss, fall
+back to OpenStreetMap Nominatim. If BOTH fail, the answer is `NOT FOUND`; never flood-check
+an address you could not place.
+
+**2. Query the live NFHL layer** (free public GIS, no key, no account):
+
+```
+https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query
+  ?geometry={"x":<LON>,"y":<LAT>}&geometryType=esriGeometryPoint&inSR=4326
+  &spatialRel=esriSpatialRelIntersects
+  &outFields=FLD_ZONE,ZONE_SUBTY,DFIRM_ID&returnGeometry=false&f=json
+```
+
+Note `arcgis`, **not** `gis`. Layer 28 is the flood-hazard area layer.
+
+**3. Sample more than one point on a large rural parcel.** A park can span several hundred
+metres and cross a zone boundary; the centroid alone can read `X` while a corner reads `AE`.
+Query the parcel point plus four points ~300 m N/S/E/W. **Any `AE`/`VE` in the set is the
+answer** — report the worst zone found and say how many points were sampled.
+
+**4. Read the result honestly.** `features: []` means *no mapped flood-hazard polygon at
+that point* — report `Zone X (no mapped SFHA)` only when the service actually returns it,
+and `NOT FOUND` when the service errors or returns nothing usable. **An empty response is
+not a clean bill of health.**
+
+**5. Cite it.** Give `FLD_ZONE`, the FIRM panel (`DFIRM_ID`) and its effective date, so a
+lender or insurer can check the same record. A flood answer without its panel is unusable
+in diligence.
+
+> Verified live 2026-09-17: the `gis/nfhl` path returns **404**; the `arcgis/rest` path
+> returns **200** with populated `FLD_ZONE`. Originally diagnosed by Wes Pipes while
+> underwriting York Kampground, where the field kept returning empty.
