@@ -1,6 +1,6 @@
 ---
 name: rv-park-screen
-pack_version: 0.7.3
+pack_version: 0.7.4
 description: >-
   Screen ONE RV park, MHP or campground from an ADDRESS — no numbers required. Pulls what
   is knowable for free (satellite image, RV-vs-MHP class, pad-count proxy, parcel, FEMA
@@ -79,6 +79,13 @@ In order:
    says to** — the ArcGIS endpoint, the geocoder fallback, and multi-point sampling on large
    parcels. Do not improvise a URL: the commonly-cited `gis/nfhl` path is dead and silently
    yields `NOT FOUND` on a field this skill promises.
+   **List each sampled point with the zone the service returned for it** (`center X · N AE ·
+   …`) — never a summarised count. The reader must be able to check every point.
+   **If every point is X, never call the property "clean" or "not a flood concern."** Say:
+   *"No high-risk zone at the 5 sampled points — this is not a parcel-level check; a flood
+   zone can cross the property between points."* Points are sampled around the address,
+   not inside the park's boundary: on 2026-09-19 all five came back X for a PA park whose
+   own boundary contains Zone A.
 6. **Wildfire hazard** — FEMA National Risk Index, **census-tract level** (the USFS servers
    refuse requests; see the method). Drives insurance cost and carrier
    availability in the West.
@@ -159,6 +166,12 @@ you an asking price and a site count and want the math, that is
 
 - **NOT FOUND is a real answer.** Never fill a gap with a plausible number. A screen whose
   gaps are honest is worth more than one that reads complete and is partly invented.
+- **One fact, one status — everywhere it appears.** A field that is `NOT FOUND` or only
+  *likely* in the table and JSON stays exactly that in the call sheet, the summary and every
+  other line. Never promote it to "confirmed" in prose: a call-sheet question about an
+  unconfirmed fact asks the seller to confirm it (*"Water — likely city; confirm, and any
+  well on site?"*). A 2026-09-19 run reported water as NOT FOUND in the table and
+  "confirmed municipal" in the call sheet — the reader cannot tell which line to believe.
 - **The pad count is a proxy. Say so every time it appears.**
 - **Crime is agency-level. Label it on the line.**
 - **Directional only — not financial advice**, and nothing here is a substitute for
