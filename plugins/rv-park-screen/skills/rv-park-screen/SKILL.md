@@ -1,6 +1,6 @@
 ---
 name: rv-park-screen
-pack_version: 0.7.1
+pack_version: 0.7.2
 description: >-
   Screen ONE RV park, MHP or campground from an ADDRESS — no numbers required. Pulls what
   is knowable for free (satellite image, RV-vs-MHP class, pad-count proxy, parcel, FEMA
