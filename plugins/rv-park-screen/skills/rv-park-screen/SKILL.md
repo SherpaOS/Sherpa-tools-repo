@@ -1,6 +1,6 @@
 ---
 name: rv-park-screen
-pack_version: 0.7.2
+pack_version: 0.7.3
 description: >-
   Screen ONE RV park, MHP or campground from an ADDRESS — no numbers required. Pulls what
   is knowable for free (satellite image, RV-vs-MHP class, pad-count proxy, parcel, FEMA
@@ -51,14 +51,23 @@ This exists so you never ask later for something they told you at the start.
 **FREE SOURCES ONLY.** Never pay, never call a paid enrichment, never guess. A lookup that
 fails is `NOT FOUND` — which is not a failure, it is a line on the call sheet.
 
-Work from `references/rv-deal-fields.md` — the FREE table there is the canonical list. In
-order:
+Work from `references/rv-deal-fields.md` — the FREE table there is the canonical list, and
+**its "Free-source methods" section says exactly how to call every source below.** Read that
+section before the first lookup and use its URLs; **do not search for or improvise endpoints.**
+Improvising is what made these fields come back empty: a live eval on 2026-09-18 watched a run
+wander through a dozen documentation pages and county sites into 403s, DNS failures and captchas.
+
+**Place the address first (method step 0).** Every field hangs off the geocoded point and its
+county; if the address cannot be placed, the screen is `NOT FOUND` — stop there.
+
+In order:
 
 1. **Satellite image — FIRST, always at the top of the output.** It is the verification
    step: the reader confirms with their own eyes that this is a park before reading
    anything else. **A wrong satellite image is worse than none** — if you cannot confidently
    resolve the address, say so rather than showing a neighbouring parcel.
-2. **RV vs MHP** — EPA SDWIS system class. `TNCWS` (transient non-community) → **RV park /
+2. **RV vs MHP** — EPA SDWIS system class, **joined on the county served, never matched by
+   address** (a record's address is the operator's mailbox — see the method). `TNCWS` (transient non-community) → **RV park /
    campground**. `CWS` (community) → **MHP / long-term**. Mixed is common and worth saying.
    This decides which playbook applies and whether it qualifies for an RV-only mandate.
 3. **Pad-count proxy** — service connections from the registry. **State it as a proxy every
@@ -70,13 +79,16 @@ order:
    says to** — the ArcGIS endpoint, the geocoder fallback, and multi-point sampling on large
    parcels. Do not improvise a URL: the commonly-cited `gis/nfhl` path is dead and silently
    yields `NOT FOUND` on a field this skill promises.
-6. **Wildfire hazard** — USFS Wildfire Hazard Potential. Drives insurance cost and carrier
+6. **Wildfire hazard** — FEMA National Risk Index, **census-tract level** (the USFS servers
+   refuse requests; see the method). Drives insurance cost and carrier
    availability in the West.
 7. **Area crime** — FBI Crime Data Explorer. ⚠️ **This is AGENCY-level (city or county), not
    address-level, and you must say so on the line itself.** No free national address-level
    crime data exists. Reported without that label, the first reader who checks it against
    local knowledge concludes the tool is broken.
 8. **Owner of record** — county recorder where public. Frequently `NOT FOUND`. Expected.
+   **Never infer an owner** from a business name, website or water-system operator; point the
+   reader to the county's own assessor search instead.
 
 ## Step 3 — The call sheet
 

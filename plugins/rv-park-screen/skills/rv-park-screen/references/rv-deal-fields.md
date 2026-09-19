@@ -104,6 +104,110 @@ does not exist*, and *the seller would not say* is often the most informative th
 file.
 
 
+## Free-source methods — how to actually call each one (added 2026-09-18)
+
+**Every FREE field above names a source. This section says how to call it.** Before it
+existed, only flood zone had a method, and a live eval showed the rest wandering through
+county sites and documentation pages until they hit DNS failures, 403s, captchas and
+JavaScript-only pages. A named source with no method is not a method.
+
+**Every method below was verified live on 2026-09-18. None needs a key or an account.**
+
+### 0. Place the address first — everything else hangs off it
+
+1. **Geocode**: US Census `geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=…&benchmark=Public_AR_Current&format=json`.
+   **On a miss, fall back to OpenStreetMap Nominatim** (`nominatim.openstreetmap.org/search?format=json&limit=1&q=…`,
+   send a real `User-Agent`). The Census geocoder routinely misses the rural addresses RV parks
+   have. **If both fail, the whole screen is `NOT FOUND` — stop; never screen a guessed point.**
+2. **County**: `geocoding.geo.census.gov/geocoder/geographies/coordinates?x=<LON>&y=<LAT>&benchmark=Public_AR_Current&vintage=Current_Current&layers=Counties&format=json`
+   → county name and 5-digit FIPS. The county drives the water, crime and owner lookups below.
+
+### 1. Satellite image
+
+`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=<W>,<S>,<E>,<N>&bboxSR=4326&size=640,480&format=jpg&f=image`
+— a real image, no key. A box of roughly ±0.004° longitude and ±0.003° latitude frames a
+typical park. Also give a clickable Google Maps satellite link
+(`https://www.google.com/maps/@<LAT>,<LON>,18z/data=!3m1!1e3`) so the reader can pan.
+**If the address was only placed to a street, say so** — a street-level point can sit a
+parcel away, and a wrong image is worse than none.
+
+### 2. RV vs MHP, and 3. the pad-count proxy — EPA drinking-water registry (SDWIS)
+
+Envirofacts, `https://data.epa.gov/efservice/…/JSON`. **Two traps, both measured:**
+
+- **Column names must be lowercase, and `equals`/uppercase silently return the wrong thing.**
+  `WATER_SYSTEM/ZIP_CODE/68467` ignores the filter and returns an arbitrary page;
+  `WATER_SYSTEM/state_code/NE` works.
+- 🔴 **The address on a water-system record is the OPERATOR'S mailing address, not the
+  system's location.** A ZIP search in one Nebraska town returned five *Colorado*
+  mobile-home parks, because the company that runs them is based there. **Never match by address or ZIP.**
+
+**Do this instead — join on the county the system SERVES:**
+
+```
+https://data.epa.gov/efservice/WATER_SYSTEM/primacy_agency_code/<ST>/pws_activity_code/A/GEOGRAPHIC_AREA/county_served/<County>/JSON
+```
+
+Then narrow by name when you have one: `WATER_SYSTEM/primacy_agency_code/<ST>/pws_name/containing/<WORD>/JSON`.
+
+| `pws_type_code` | Means |
+|---|---|
+| `TNCWS` (transient non-community) | **RV park / campground** |
+| `CWS` (community) | **MHP / long-term residents** |
+| `NTNCWS` | a workplace or school — not a park |
+
+`service_connections_count` is the **pad-count proxy — say "proxy" every time.**
+
+⚠️ **Absence is common and means nothing about the property.** A park on municipal water has
+no system of its own and will not appear in the registry at all. Report `NOT FOUND — likely on
+municipal water; ask the seller`. **Never attribute a nearby system to this address** because it
+is the only park-like system in the county — other campgrounds in the same county are routinely
+miles away. Listing them as nearby comparables is fine; assigning one to this property is not.
+
+### 4. Parcel size and 8. owner of record
+
+**There is no free national parcel or ownership source.** Report `NOT FOUND` and hand the
+reader the county's own lookup: name the county from step 0 and point to its assessor or
+property-appraiser search. Parcel and owner are usually one lookup there. **Never infer an
+owner from a business name, a website, or a water-system operator** — the operator is often a
+management company, not the owner.
+
+### 5. FEMA flood zone
+
+See the next section.
+
+### 6. Wildfire hazard — FEMA National Risk Index
+
+The USFS Wildfire Hazard Potential servers refused every request on 2026-09-18 (403 on all
+three hosts), so use the Risk Index instead — tract-level, no key:
+
+```
+https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Census_Tracts/FeatureServer/0/query
+  ?geometry={"x":<LON>,"y":<LAT>}&geometryType=esriGeometryPoint&inSR=4326
+  &spatialRel=esriSpatialRelIntersects&outFields=TRACTFIPS,COUNTY,WFIR_RISKR,RISK_RATNG
+  &returnGeometry=false&f=json
+```
+
+`WFIR_RISKR` is the wildfire rating (e.g. *Relatively Low*). **Label it census-tract level.**
+`RISK_RATNG` is the composite across all hazards — useful context, not the wildfire number.
+
+### 7. Area crime — FBI Crime Data Explorer
+
+Public demo key, no signup: append `API_KEY=DEMO_KEY`. It is rate-limited (roughly 30 calls an
+hour per IP) — a screen needs two.
+
+1. **Agencies**: `https://api.usa.gov/crime/fbi/cde/agency/byStateAbbr/<ST>?API_KEY=DEMO_KEY`
+   → grouped by county; each agency has an `ori`, a type (*City*, *County*…) and coordinates.
+   Use the **city police department if the park is inside city limits, otherwise the county
+   sheriff.**
+2. **Violent crime**: `https://api.usa.gov/crime/fbi/cde/summarized/agency/<ORI>/violent-crime?from=01-<YYYY>&to=12-<YYYY>&API_KEY=DEMO_KEY`
+   → monthly rates per 100k for the agency, the state and the US. **Sum the 12 months** for an
+   annual rate, and show all three side by side.
+
+⚠️ **Say "agency-level (city/county), not address-level" on the line itself.** No free
+national address-level crime data exists. Present it as: agency rate · state rate · US rate, per
+100k per year — the comparison is what makes the number mean anything.
+
 ## FEMA flood zone — the working method (added 2026-09-17)
 
 **Do not let the model find its own endpoint.** Until this section existed, both RV skills
@@ -145,4 +249,4 @@ in diligence.
 
 > Verified live 2026-09-17: the `gis/nfhl` path returns **404**; the `arcgis/rest` path
 > returns **200** with populated `FLD_ZONE`. Originally diagnosed by Wes Pipes while
-> underwriting York Kampground, where the field kept returning empty.
+> underwriting a live deal, where the field kept returning empty.
